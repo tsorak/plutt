@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+crossterm = { version = "0.27.0", features = ["event-stream", "events", "windows", "bracketed-paste"] }
+futures = "0.3.30"
+tokio = { version = "1.36.0", features = ["rt-multi-thread", "macros", "time", "sync", "fs"] }
