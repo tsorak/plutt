@@ -52,3 +52,41 @@ impl Input {
         }
     }
 }
+
+pub mod vim_sequence {
+    use std::sync::Arc;
+    use tokio::sync::{broadcast::Receiver, Mutex};
+
+    pub struct VimSequence {
+        buffer: Arc<Mutex<Vec<char>>>,
+    }
+
+    impl VimSequence {
+        pub fn new(input_rx: Receiver<char>) -> Self {
+            let buffer = Arc::new(Mutex::new(vec![]));
+
+            Self::attach_input_consumer(&buffer, input_rx);
+
+            Self { buffer }
+        }
+
+        pub async fn to_string(&self) -> String {
+            let mut s = String::new();
+            let lock = self.buffer.lock().await;
+            lock.iter().for_each(|char| s.push(*char));
+            s
+        }
+
+        fn attach_input_consumer(buffer: &Arc<Mutex<Vec<char>>>, mut input_rx: Receiver<char>) {
+            let buffer = buffer.clone();
+
+            tokio::spawn(async move {
+                loop {
+                    if let Ok(char) = input_rx.recv().await {
+                        buffer.lock().await.push(char);
+                    }
+                }
+            });
+        }
+    }
+}
