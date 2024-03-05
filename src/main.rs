@@ -1,39 +1,21 @@
 mod edit_ui;
+mod ext;
 mod input;
 mod sequence_print;
 
-use std::io::stdout;
-
-use crate::input::{vim_sequence::VimSequence, Input};
+use crate::{input::Input, sequence_print::SequencePrinter};
 
 #[tokio::main]
 async fn main() {
+    crossterm::terminal::enable_raw_mode();
+
     let mut input = Input::new();
     input.init();
 
-    let mut vim_sequence = VimSequence::new();
-    vim_sequence
-        .setup_sequence_channel()
-        .attach_input_consumer(input.get_receiver());
+    let mut seq_printer = SequencePrinter::new();
+    seq_printer.start(input.get_receiver());
 
-    crossterm::terminal::enable_raw_mode();
-
-    loop {
-        if let Some(seq) = vim_sequence.recv().await {
-            match seq.as_ref() {
-                "q" => break,
-                sequence => {
-                    let s = sequence.to_string();
-                    crossterm::execute!(
-                        stdout(),
-                        crossterm::cursor::MoveTo(0, 0),
-                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-                        crossterm::style::Print(&s)
-                    );
-                }
-            }
-        }
-    }
+    seq_printer.wait_end().await;
 
     crossterm::terminal::disable_raw_mode();
 
