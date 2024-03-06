@@ -1,3 +1,18 @@
+pub mod terminal {
+    use std::io::stdout;
+
+    use crossterm::execute;
+
+    pub fn clear_all() {
+        let _ = execute!(
+            stdout(),
+            crossterm::cursor::SavePosition,
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::cursor::RestorePosition
+        );
+    }
+}
+
 pub mod pos {
     use crossterm::{cursor::MoveTo, terminal::size};
 

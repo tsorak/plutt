@@ -5,7 +5,10 @@ use tokio::{
     task::{JoinError, JoinHandle},
 };
 
-use crate::{ext::crossterm as ct, input::vim_sequence::VimSequence};
+use crate::{
+    ext::crossterm as ct,
+    input::{vim_key::VimKey, vim_sequence::VimSequence},
+};
 
 pub struct SequencePrinter {
     handle: Option<JoinHandle<()>>,
@@ -16,7 +19,7 @@ impl SequencePrinter {
         Self { handle: None }
     }
 
-    pub fn start(&mut self, input: Receiver<char>) -> &mut Self {
+    pub fn start(&mut self, input: Receiver<VimKey>) -> &mut Self {
         if self.handle.is_some() {
             return self;
         }
