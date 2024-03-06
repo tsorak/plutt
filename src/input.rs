@@ -104,7 +104,7 @@ pub mod vim_key {
 }
 
 pub mod vim_sequence {
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
     use tokio::sync::{
         broadcast::{channel, Receiver, Sender},
         Mutex,
@@ -116,7 +116,6 @@ pub mod vim_sequence {
         buffer: Arc<Mutex<Vec<char>>>,
         sequence_tx: Option<Sender<String>>,
         sequence_rx: Option<Receiver<String>>,
-        special_key_handlers: Option<Arc<Mutex<HashMap<String, ()>>>>,
     }
 
     impl VimSequence {
@@ -125,7 +124,6 @@ pub mod vim_sequence {
                 buffer: Arc::new(Mutex::new(vec![])),
                 sequence_tx: None,
                 sequence_rx: None,
-                special_key_handlers: None,
             }
         }
 
@@ -140,13 +138,13 @@ pub mod vim_sequence {
         pub fn attach_input_consumer(&mut self, input_rx: Receiver<VimKey>) -> &Self {
             let buffer = self.buffer.clone();
             let sequence_tx = self.sequence_tx.take();
-            let special_handlers = self.special_key_handlers.as_ref();
+            // let special_handlers = self.special_key_handlers.as_ref();
 
-            if let Some(special_handlers) = special_handlers {
-                Self::start_receiving(buffer, input_rx, sequence_tx, special_handlers.clone());
-            } else {
-                Self::start_receiving_chars_only(buffer, input_rx, sequence_tx);
-            }
+            // if let Some(special_handlers) = special_handlers {
+            Self::start_receiving(buffer, input_rx, sequence_tx);
+            // } else {
+            // Self::start_receiving_chars_only(buffer, input_rx, sequence_tx);
+            // }
 
             self
         }
@@ -159,7 +157,7 @@ pub mod vim_sequence {
             buffer: Arc<Mutex<Vec<char>>>,
             mut input_rx: Receiver<VimKey>,
             sequence_tx: Option<Sender<String>>,
-            special_handlers: Arc<Mutex<HashMap<String, ()>>>,
+            // _special_handlers: Arc<HashMap<String, ()>>,
         ) {
             tokio::spawn(async move {
                 loop {
@@ -167,7 +165,8 @@ pub mod vim_sequence {
                         Ok(VimKey {
                             special: Some(key), ..
                         }) => {
-                            todo!();
+                            Self::handle_special_key(key, buffer.clone(), sequence_tx.clone())
+                                .await;
                         }
                         Ok(VimKey {
                             alphanumeric: Some(key),
@@ -207,6 +206,31 @@ pub mod vim_sequence {
                     }
                 }
             });
+        }
+
+        async fn handle_special_key(
+            key: String,
+            buffer: Arc<Mutex<Vec<char>>>,
+            sequence_tx: Option<Sender<String>>,
+        ) {
+            match key.as_ref() {
+                "<esc>" => {
+                    Self::buffer_clear(buffer).await;
+
+                    if let Some(ref tx) = sequence_tx {
+                        let _ = tx.send("".into());
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        async fn buffer_clear(buffer: Arc<Mutex<Vec<char>>>) {
+            (*buffer.lock().await).clear()
+        }
+
+        async fn buffer_len(buffer: Arc<Mutex<Vec<char>>>) -> usize {
+            (*buffer.lock().await).len()
         }
 
         pub async fn recv(&mut self) -> Option<String> {
