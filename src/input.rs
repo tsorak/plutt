@@ -104,7 +104,7 @@ pub mod vim_key {
 }
 
 pub mod vim_sequence {
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
     use tokio::sync::{
         broadcast::{channel, Receiver, Sender},
         Mutex,
@@ -112,10 +112,27 @@ pub mod vim_sequence {
 
     use super::vim_key::VimKey;
 
+    // to be renamed. ex Command, CommandMode
     pub struct VimSequence {
         buffer: Arc<Mutex<Vec<char>>>,
         sequence_tx: Option<Sender<String>>,
         sequence_rx: Option<Receiver<String>>,
+    }
+
+    pub struct VimSequenceData {
+        sequence: String,
+        ///
+        /// Regular special key '<esc>' or perhaps vim specific triggers such as 'i_mode'?
+        ///
+        /// When i_mode is encountered maybe Self "parks" (stops transmitting and filling the
+        /// buffer), aswell as the builder of Self starts interpreting input_rx directly to be
+        /// handled by Editor.
+        ///
+        /// Builder of Self may be called "ModeController"
+        ///
+        /// Maybe DONT rename as modes such as v_mode use similar bindings, such as hjkl
+        ///
+        vim_action: String,
     }
 
     impl VimSequence {
@@ -138,7 +155,6 @@ pub mod vim_sequence {
         pub fn attach_input_consumer(&mut self, input_rx: Receiver<VimKey>) -> &Self {
             let buffer = self.buffer.clone();
             let sequence_tx = self.sequence_tx.take();
-            // let special_handlers = self.special_key_handlers.as_ref();
 
             // if let Some(special_handlers) = special_handlers {
             Self::start_receiving(buffer, input_rx, sequence_tx);
@@ -157,7 +173,6 @@ pub mod vim_sequence {
             buffer: Arc<Mutex<Vec<char>>>,
             mut input_rx: Receiver<VimKey>,
             sequence_tx: Option<Sender<String>>,
-            // _special_handlers: Arc<HashMap<String, ()>>,
         ) {
             tokio::spawn(async move {
                 loop {
@@ -221,7 +236,7 @@ pub mod vim_sequence {
                         let _ = tx.send("".into());
                     }
                 }
-                _ => (),
+                k => (),
             }
         }
 
